@@ -128,14 +128,14 @@ export const loginUser = async (mobileNumber, password) => {
     }
 
     const accessToken = generateToken({
-         userId: user.id ,
+         userId: user.uid,
          mobileNumber: user.phoneNumber
         });
 
     return {
-        message: "Login successful",
+        message: "Login successful",    
         accessToken,
-        userId: user.id
+        userId: user.uid
     }
    
 }
