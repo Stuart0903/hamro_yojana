@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum ProfileStatus {
+  COMPLETE
+  INCOMPLETE
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum EmploymentType {
+  SELF_EMPLOYED
+  PRIVATE
+  GOVERNMENT
+  STUDENT
+  UNEMPLOYED
+}
+
+enum EducationLevel {
+  NONE
+  PRIMARY
+  SECONDARY
+  TERTIARY
+  POSTGRADUATE
+}
+
+enum DocumentType {
+  CITIZENSHIP
+  PASSPORT
+  NID
+  LICENSE
+  OTHER
+}
+
+//////////////////////
+// MODELS
+//////////////////////
+
+model User {
+  uid String @id @default(cuid())
+  phoneNumber String @unique
+  passwordHash String
+  isPhoneVerified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  otpVerification OTPVerification[]
+  citizenProfiles CitizenProfile[]
+}
+
+model OTPVerification {
+  id String @id @default(cuid())
+  phoneNumber String
+  userId String?
+  otpCode String
+  expiresAt DateTime
+  isUsed Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [uid], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model CitizenProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  profileStatus ProfileStatus @default(INCOMPLETE)
+  verificationStatus VerificationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //Relations
+  user User @relation(fields: [userId], references: [uid], onDelete: Cascade)
+  personalDetails PersonalDetails?
+  address Address?
+  education Education?
+  occupation Occupation?
+  documents Document[]
+
+}
+
+model PersonalDetails {
+  id String @id @default(cuid())
+  profileId String @unique
+
+  fullName String
+  dateOfBirth DateTime
+  gender Gender
+  maritalStatus MaritalStatus
+  fatherName String
+  motherName String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id String @id @default(cuid())
+  profileId String @unique
+
+  province String
+  district String
+  municipality String
+  ward String
+  tole String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Education {
+  id String @id @default(cuid())
+  profileId String @unique
+
+  highestQualification String
+  institutionName String?
+  graduationYear Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Occupation {
+  id String @id @default(cuid())
+  profileId String @unique
+
+  occupationTitle String
+  employmentType   EmploymentType
+  organizationName String?
+
+  createdAt DateTime @default(now())
+
+  profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id String @id @default(cuid())
+  profileId String
+
+  documentType DocumentType
+  documentNumber String
+  issuedDate DateTime
+
+  frontImageUrl String
+  backImageUrl String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@unique([documentType, documentNumber])
+}
+  
+
+
