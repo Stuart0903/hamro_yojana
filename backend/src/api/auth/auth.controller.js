@@ -2,8 +2,11 @@ import {
     requestOTP,
     verifyOTP,
     createUser,
-    loginUser
+    loginUser,
+    refreshTokenService
 } from "./auth.service.js";
+
+import {revokeRefreshToken} from "../../utils/jwt.js";
 
 export const requestOTPController = async (req, res) => {
     try {
@@ -80,7 +83,8 @@ export const loginUserController = async (req, res) => {
         return res.status(200).json({ 
             message: "Login successful", 
             user: result.userId,
-            token: result.accessToken
+            token: result.accessToken,
+            refreshToken: result.refreshToken
         });
     }catch (err) {
         console.error("Error in loginUserController:", err);
@@ -88,15 +92,41 @@ export const loginUserController = async (req, res) => {
     }
 }
 
-export const logoutUserController = (req, res) => {
+export const refreshTokenController = async (req, res) => {
     try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+
+        const result = await refreshTokenService(refreshToken);
+        res.cookie("accessToken", result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 15 * 60 * 1000 // 15 minutes
+        });
+        return res.status(200).json(result);
+    }catch (err) {
+        console.error("Error in refreshTokenController:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+
+export const logoutUserController = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+        await revokeRefreshToken(refreshToken);
         res.clearCookie("accessToken", {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
         });
-        res.status(200).json({ message: "Logout successful" });
-
+        res.status(200).json({ message: "Logout successful" }); 
     }catch (err) {
         console.error("Error in logoutUserController:", err);
         res.status(500).json({ message: "Internal server error" });

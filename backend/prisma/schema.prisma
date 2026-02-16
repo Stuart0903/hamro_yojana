@@ -81,6 +81,7 @@ model User {
   // Relations
   otpVerification OTPVerification[]
   citizenProfiles CitizenProfile[]
+  refreshTokens refreshToken[]
 }
 
 model OTPVerification {
@@ -93,6 +94,19 @@ model OTPVerification {
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [uid], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model refreshToken {
+  id String @id @default(cuid())
+  userId String
+  token String @unique
+  isRevoked Boolean @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [uid], onDelete: Cascade)
 
   @@index([userId])
 }

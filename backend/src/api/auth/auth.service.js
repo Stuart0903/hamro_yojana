@@ -2,7 +2,7 @@ import {otpGenerator} from "../../utils/otp.generator.js";
 import { sendOtpSMS } from "../../utils/sms.sender.js";
 import {prisma} from "../../config/db.config.js";
 import {hashPassword, comparePassword} from "../../utils/hash.js";
-import { generateToken, generateRefreshToken } from "../../utils/jwt.js";
+import { generateToken, generateRefreshToken, revokeRefreshToken } from "../../utils/jwt.js";
 
 
 export const requestOTP = async (mobileNumber) => {
@@ -113,6 +113,7 @@ export const loginUser = async (mobileNumber, password) => {
     const user = await prisma.user.findUnique({
         where : {phoneNumber : mobileNumber}
     });
+    console.log("User found:", user);
 
     if (!user) {
         throw new Error("User not found");
@@ -132,12 +133,40 @@ export const loginUser = async (mobileNumber, password) => {
          mobileNumber: user.phoneNumber
         });
 
+    const refreshToken = await generateRefreshToken(user);
+
     return {
         message: "Login successful",    
         accessToken,
+        refreshToken,
         userId: user.uid
     }
    
+}
+
+export const refreshTokenService = async (refreshToken) => {
+    const storedToken = await prisma.refreshToken.findUnique({
+        where: {token: refreshToken},
+        include: {user: true}
+    });
+
+    if (!storedToken || storedToken.isRevoked || storedToken.expiresAt < new Date()) {
+        throw new Error("Invalid or expired refresh token");
+    }
+
+    await revokeRefreshToken(refreshToken);
+
+    const newAccessToken = generateToken({
+        userId: storedToken.user.uid,
+        mobileNumber: storedToken.user.phoneNumber
+    });
+
+    const newRefreshToken = await generateRefreshToken(storedToken.user);
+
+    return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken
+    }
 }
 
 

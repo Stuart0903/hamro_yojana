@@ -24,6 +24,20 @@ export const userAuthenticate = (req, res, next) => {
 
     }catch(error){
         console.error('Error in user authentication middleware:', error);
+        
+        if(error.name === 'TokenExpiredError'){
+            return res.status(401).json({ 
+                message: 'Token expired', 
+                expiredAt: error.expiredAt 
+            });
+        }
+        
+        if(error.name === 'JsonWebTokenError'){
+            return res.status(401).json({ 
+                message: 'Invalid token' 
+            });
+        }
+        
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 }
