@@ -65,14 +65,55 @@ enum DocumentType {
   OTHER
 }
 
+//////////////////////////////////////////////////////
+// JURISDICTION
+//////////////////////////////////////////////////////
+model Province {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  districts District[]
+}
+
+model District {
+  id         String   @id @default(uuid())
+  name       String
+  provinceId String
+  province   Province @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+
+  municipalities Municipality[]
+
+  @@unique([name, provinceId])
+}
+
+model Municipality {
+  id         String   @id @default(uuid())
+  name       String
+  type       String
+  districtId String
+  district   District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  wards Ward[]
+
+  @@unique([name, districtId])
+}
+
+model Ward {
+  id             String       @id @default(uuid())
+  wardNumber     Int
+  municipalityId String
+  municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
+
+  @@unique([wardNumber, municipalityId])
+}
+
 //////////////////////
 // MODELS
 //////////////////////
 
 model User {
-  uid String @id @default(cuid())
-  phoneNumber String @unique
-  passwordHash String
+  uid             String  @id @default(cuid())
+  phoneNumber     String  @unique
+  passwordHash    String
   isPhoneVerified Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -81,17 +122,17 @@ model User {
   // Relations
   otpVerification OTPVerification[]
   citizenProfiles CitizenProfile[]
-  refreshTokens refreshToken[]
+  refreshTokens   refreshToken[]
 }
 
 model OTPVerification {
-  id String @id @default(cuid())
+  id          String   @id @default(cuid())
   phoneNumber String
-  userId String?
-  otpCode String
-  expiresAt DateTime
-  isUsed Boolean @default(false)
-  createdAt DateTime @default(now())
+  userId      String?
+  otpCode     String
+  expiresAt   DateTime
+  isUsed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [uid], onDelete: Cascade)
 
@@ -99,10 +140,10 @@ model OTPVerification {
 }
 
 model refreshToken {
-  id String @id @default(cuid())
-  userId String
-  token String @unique
-  isRevoked Boolean @default(false)
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  isRevoked Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -112,34 +153,33 @@ model refreshToken {
 }
 
 model CitizenProfile {
-  id String @id @default(cuid())
-  userId String @unique
-  profileStatus ProfileStatus @default(INCOMPLETE)
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  profileStatus      ProfileStatus      @default(INCOMPLETE)
   verificationStatus VerificationStatus @default(PENDING)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   //Relations
-  user User @relation(fields: [userId], references: [uid], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [uid], onDelete: Cascade)
   personalDetails PersonalDetails?
-  address Address?
-  education Education?
-  occupation Occupation?
-  documents Document[]
-
+  address         Address?
+  education       Education?
+  occupation      Occupation?
+  documents       Document[]
 }
 
 model PersonalDetails {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String @unique
 
-  fullName String
-  dateOfBirth DateTime
-  gender Gender
+  fullName      String
+  dateOfBirth   DateTime
+  gender        Gender
   maritalStatus MaritalStatus
-  fatherName String
-  motherName String
+  fatherName    String
+  motherName    String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,14 +188,14 @@ model PersonalDetails {
 }
 
 model Address {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String @unique
 
-  province String
-  district String
+  province     String
+  district     String
   municipality String
-  ward String
-  tole String
+  ward         String
+  tole         String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,12 +204,12 @@ model Address {
 }
 
 model Education {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String @unique
 
   highestQualification String
-  institutionName String?
-  graduationYear Int?
+  institutionName      String?
+  graduationYear       Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -178,10 +218,10 @@ model Education {
 }
 
 model Occupation {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String @unique
 
-  occupationTitle String
+  occupationTitle  String
   employmentType   EmploymentType
   organizationName String?
 
@@ -191,24 +231,21 @@ model Occupation {
 }
 
 model Document {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String
 
-  documentType DocumentType
+  documentType   DocumentType
   documentNumber String
-  issuedDate DateTime
+  issuedDate     DateTime
 
   frontImageUrl String
-  backImageUrl String
+  backImageUrl  String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   profile CitizenProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@index([profileId])
   @@unique([documentType, documentNumber])
+  @@index([profileId])
 }
-  
-
-

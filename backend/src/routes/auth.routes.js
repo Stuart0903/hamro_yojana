@@ -7,6 +7,7 @@ import { requestOTPController,
     refreshTokenController
 
  } from "../api/auth/auth.controller.js";
+ import { userAuthenticate } from "../middlwares/user.authenticate.js";
 
 
 const router = Router();
@@ -21,7 +22,7 @@ router.post('/user/login', loginUserController);
 
 router.post('/user/refresh-token', refreshTokenController );
 
-router.post('/user/logout', logoutUserController);
+router.post('/user/logout', userAuthenticate,logoutUserController);
 
 
 
