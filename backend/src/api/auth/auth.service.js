@@ -85,28 +85,52 @@ export const createUser = async (mobileNumber, password) => {
 
     const hashedPassword = await hashPassword(password);
 
-    const newUser = await prisma.user.create({
-        data : {
-            phoneNumber : mobileNumber,
-            passwordHash : hashedPassword,
-            isPhoneVerified: true,
+    const result = await prisma.$transaction(async (tx) => {
+
+        //Create user
+        const newUser = await tx.user.create({
+            data : {
+                phoneNumber: mobileNumber,
+                passwordHash: hashedPassword,
+                isPhoneVerified:true,
+            }
+        })
+
+        //Get Citizen Role
+        const citizenRole = await tx.role.findUnique({
+            where : {name : "CITIZEN"}
+        })
+
+        if (!citizenRole) {
+            throw new Error("Citizen role not found in database");
         }
-    });
 
-    await prisma.oTPVerification.deleteMany({
-        where : {
-            phoneNumber : mobileNumber
-        }
-    });
+        await tx.userRole.create({
+            data : {
+                userId: newUser.uid,
+                roleId: citizenRole.id
+            }
+        })
 
-    await prisma.citizenProfile.create({
-        data: {
-            userId: newUser.uid,
-        }
+        // Create citizen profile
+        await tx.citizenProfile.create({
+            data: {
+                userId: newUser.uid,
+            }
+        });
 
-    })
+        //Delete OTP records for this phone number
+        await tx.oTPVerification.deleteMany({
+            where : {
+                phoneNumber : mobileNumber
+            }
+        });
 
-    return {message: "User created successfully", userId: newUser.id};
+    }
+
+    );
+
+    return {message: "User created successfully", userId: result.newUser.uid};
 }
 
 export const loginUser = async (mobileNumber, password) => {
