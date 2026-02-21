@@ -95,6 +95,4 @@ export const completeUserProfile = async (userId, profileData) => {
     ]);
 
     return { message: 'Profile completed successfully' };
-
-
 }

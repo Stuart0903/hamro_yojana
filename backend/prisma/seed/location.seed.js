@@ -1,4 +1,4 @@
-import { prisma } from "../src/config/db.config.js";
+// import { prisma } from "../../src/config/db.config.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -6,10 +6,10 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-async function main() {
+export async function seedLocations(prisma) {
   console.log("🌱 Starting Nepal location seeding...");
 
-  const filePath = join(__dirname, "data", "nepal-formatted.json");
+  const filePath = join(__dirname, "../data/nepal-formatted.json");
   const rawData = readFileSync(filePath, "utf-8");
   const provinces = JSON.parse(rawData);
 
@@ -87,11 +87,3 @@ async function main() {
   console.log("✅ Nepal location data seeded successfully!");
 }
 
-main()
-  .catch((e) => {
-    console.error("❌ Seeding failed:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

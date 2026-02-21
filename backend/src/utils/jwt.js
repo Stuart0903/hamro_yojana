@@ -5,7 +5,7 @@ import {prisma } from "../config/db.config.js";
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const options = {
-  expiresIn: "30s",
+  expiresIn: "1h",
 };
 
 export const generateToken = (payload) => {
