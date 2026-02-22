@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-export const userAuthenticate = (req, res, next) => {
+import { prisma } from '../config/db.config.js';
+export const userAuthenticate = async (req, res, next) => {
 
     try{
         const authHeader = req.headers.authorization || req.headers.Authorization;
@@ -18,8 +19,36 @@ export const userAuthenticate = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-        console.log('Decoded token:', req.user.userId);
+
+        const user = await prisma.user.findUnique({
+            where: {uid: decoded.userId},
+            include: {
+                userRoles: {
+                    include: {
+                        role: true,
+                    }
+                }, 
+                citizenProfile: true,
+            }
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const roles = user.userRoles.map((ur) => ur.role.name);
+
+        if (!roles.includes("CITIZEN")) {
+            return res.status(403).json({ message: 'Access denied: User is not a citizen' });
+        }
+
+        req.user = {
+            userId: user.uid,
+            phoneNumber: user.phoneNumber,
+            roles: roles,
+            citizenProfile: user.citizenProfile,
+        }
+        
         next();
 
     }catch(error){

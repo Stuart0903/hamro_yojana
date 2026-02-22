@@ -255,8 +255,10 @@ model OTPVerification {
   phoneNumber String
   userId      String?
   otpCode     String
+  purpose String?
   expiresAt   DateTime
   isUsed      Boolean  @default(false)
+  attempt Int      @default(0)
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [uid], onDelete: Cascade)

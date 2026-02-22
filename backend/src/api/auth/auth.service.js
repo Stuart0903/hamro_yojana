@@ -3,6 +3,8 @@ import { sendOtpSMS } from "../../utils/sms.sender.js";
 import {prisma} from "../../config/db.config.js";
 import {hashPassword, comparePassword} from "../../utils/hash.js";
 import { generateToken, generateRefreshToken, revokeRefreshToken } from "../../utils/jwt.js";
+import jwt from "jsonwebtoken";
+// import { otpGenerator } from "../../utils/otp.generator.js";
 
 
 export const requestOTP = async (mobileNumber) => {
@@ -17,6 +19,8 @@ export const requestOTP = async (mobileNumber) => {
         data : {
             phoneNumber:mobileNumber,
             otpCode: otpHash,
+            isUsed: false,
+            purpose: "PHONE_VERIFICATION",
             expiresAt : new Date(Date.now() + 5 * 60 * 1000)
         }
     });
@@ -125,12 +129,14 @@ export const createUser = async (mobileNumber, password) => {
                 phoneNumber : mobileNumber
             }
         });
+        console.log(newUser);
 
+        return newUser;
     }
-
     );
+    console.log("User created with ID:", result.uid);
 
-    return {message: "User created successfully", userId: result.newUser.uid};
+    return {message: "User created successfully", userId: result.uid};
 }
 
 export const loginUser = async (mobileNumber, password) => {
@@ -192,6 +198,124 @@ export const refreshTokenService = async (refreshToken) => {
         refreshToken: newRefreshToken
     }
 }
+
+export const forgotPasswordService = async (phoneNumber) => {
+    const user = await prisma.user.findUnique({
+        where: {phoneNumber}
+    });
+
+    if (!user) {
+        throw new Error("User with this phone number does not exist");
+    }
+
+    const otp = otpGenerator();
+
+    await prisma.oTPVerification.create({
+        data: {
+            phoneNumber,
+            otpCode: await hashPassword(otp),
+            purpose: "PASSWORD_RESET",
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+            isUsed: false
+        }
+    })
+
+    await sendOtpSMS(phoneNumber, otp);
+
+    // Simulate sending OTP (in a real app, this would send an SMS)
+    console.log(`Password reset OTP for ${phoneNumber}: ${otp}`);
+
+    return {message: "OTP sent successfully"};
+
+
+
+
+}
+
+export const verifyResetOtpService = async (phoneNumber, otp) => {
+    const record = await prisma.oTPVerification.findFirst({
+        where: {
+            phoneNumber,
+            purpose: "PASSWORD_RESET",
+            isUsed: false,
+        },
+        orderBy: { createdAt: "desc" }
+    });
+
+    if (!record) {
+        throw new Error("No OTP request found for this phone number");
+    }
+
+    if (record.expiresAt < new Date()) {
+        throw new Error("OTP has expired");
+    }
+
+    if (record.attempt >= 5) {
+        throw new Error("Maximum OTP verification attempts exceeded");
+    }
+
+    const isOtpValid = await comparePassword(otp, record.otpCode);
+
+    console.log("isOtpValid:", isOtpValid);
+    console.log("OTP record:", record.otpCode);
+
+    if (!isOtpValid) {
+        await prisma.oTPVerification.update({
+            where: {id: record.id},
+            data: {attempt: record.attempt + 1}
+        });
+        throw new Error("Invalid OTP");
+    }
+
+    await prisma.oTPVerification.update({
+        where: {id: record.id},
+        data: {isUsed: true}
+    })
+
+    const resetToken = jwt.sign(
+        {phoneNumber, purpose: "PASSWORD_RESET"},
+        process.env.JWT_SECRET,
+        {expiresIn: "15m"}
+    )
+
+    return resetToken;
+}
+
+
+export const resetPasswordService = async (resetToken, newPassword) => {
+    let decoded;
+
+    try {
+        decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+    }catch {
+        throw new Error("Invalid or expired reset token");
+    }
+
+    if (decoded.purpose !== "PASSWORD_RESET") {
+        throw new Error("Invalid reset token");
+    }
+
+    const user = await prisma.user.findUnique({
+        where: {phoneNumber: decoded.phoneNumber}
+    });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+        where: {uid: user.uid},
+        data: {passwordHash: hashedPassword}
+    });
+
+}
+
+
+
+
+
 
 
 

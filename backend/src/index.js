@@ -13,7 +13,7 @@ app.use(cors());
 
 
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+  res.send('Hello, World! momo khana jam');
 });
 
 app.use('/api/auth', authRoutes);

@@ -4,8 +4,10 @@ import { requestOTPController,
     createUserController,
     loginUserController,
     logoutUserController,
-    refreshTokenController
-
+    refreshTokenController,
+    resetPasswordController,
+    resetPasswordOtpController,
+    verifyPasswordOtpController
  } from "../api/auth/auth.controller.js";
  import { userAuthenticate } from "../middlwares/user.authenticate.js";
  import { adminAuthController } from "../api/admin/auth/auth.controller.js";
@@ -27,8 +29,14 @@ router.post('/user/refresh-token', refreshTokenController );
 router.post('/user/logout', userAuthenticate,logoutUserController);
 
 
-router.post('/admin/login', adminAuthController); 
+router.post('/user/request-password-reset-otp', resetPasswordOtpController);
+router.post('/user/verify-password-reset-otp', verifyPasswordOtpController);
+router.post('/user/reset-password', resetPasswordController);
 
+
+
+
+router.post('/admin/login', adminAuthController); 
 router.post('/officer/login', govAuthController);
 
 

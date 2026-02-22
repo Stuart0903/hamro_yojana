@@ -3,8 +3,12 @@ import {
     verifyOTP,
     createUser,
     loginUser,
-    refreshTokenService
+    refreshTokenService,
+    resetPasswordService,
+    verifyResetOtpService,
+    forgotPasswordService
 } from "./auth.service.js";
+
 
 import {revokeRefreshToken} from "../../utils/jwt.js";
 
@@ -132,3 +136,58 @@ export const logoutUserController = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
+export const resetPasswordOtpController = async (req, res) => {
+    try {
+        const {phoneNumber} = req.body;
+        if (!phoneNumber) {
+            return res.status(400).json({ message: "Phone number is required" });
+        }
+        const result = await forgotPasswordService(phoneNumber);
+        return res.status(200).json(result);
+    }catch (err) {
+        console.error("Error in resetPasswordOtpController:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const verifyPasswordOtpController = async (req, res) => {
+    try {
+        const {phoneNumber, otp} = req.body;
+        const resetToken = await verifyResetOtpService(phoneNumber, otp);
+        if (resetToken) {
+            return res.status(200).json({
+                success: true,
+                message: "OTP verified successfully",
+                resetToken
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid OTP"
+            });
+        }
+
+    }catch (err) {
+        console.error("Error in verifyPasswordOtpController:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+
+}
+
+export const resetPasswordController = async (req, res) => {
+    try {
+        const {resetToken, newPassword} = req.body;
+
+        await resetPasswordService(resetToken, newPassword);
+
+        return res.status(200).json({
+            success: true,
+            message: "Password reset successful"
+        });
+    }catch (err) {
+        console.error("Error in resetPasswordController:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
