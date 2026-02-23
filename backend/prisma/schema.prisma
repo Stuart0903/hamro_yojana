@@ -242,7 +242,6 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  otpVerification OTPVerification[]
   refreshTokens   refreshToken[]
   userRoles       UserRole[]
 
@@ -253,7 +252,6 @@ model User {
 model OTPVerification {
   id          String   @id @default(cuid())
   phoneNumber String
-  userId      String?
   otpCode     String
   purpose String?
   expiresAt   DateTime
@@ -261,9 +259,7 @@ model OTPVerification {
   attempt Int      @default(0)
   createdAt   DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [uid], onDelete: Cascade)
-
-  @@index([userId])
+  @@index([phoneNumber, purpose])
 }
 
 model refreshToken {

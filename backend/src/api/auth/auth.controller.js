@@ -1,6 +1,6 @@
 import {
-    requestOTP,
-    verifyOTP,
+    requestRegisterOtpService,
+    verifyRegisterOtpService,
     createUser,
     loginUser,
     refreshTokenService,
@@ -12,7 +12,7 @@ import {
 
 import {revokeRefreshToken} from "../../utils/jwt.js";
 
-export const requestOTPController = async (req, res) => {
+export const requestRegisterOTPController = async (req, res) => {
     try {
         const { phoneNumber } = req.body;
 
@@ -20,7 +20,7 @@ export const requestOTPController = async (req, res) => {
             return res.status(400).json({ message: "Phone number is required" });
         }
 
-        const result = await requestOTP(phoneNumber);
+        const result = await requestRegisterOtpService(phoneNumber);
         res.status(200).json(result);
     }catch (err) {
         console.error("Error in requestOTPController:", err);
@@ -28,7 +28,7 @@ export const requestOTPController = async (req, res) => {
     }
 }
 
-export const verifyOTPController = async (req, res) => {
+export const verifyRegisterOTPController = async (req, res) => {
     try{
         const { phoneNumber, otp } = req.body;
 
@@ -36,12 +36,17 @@ export const verifyOTPController = async (req, res) => {
             return res.status(400).json({ message: "Phone number and OTP are required" });
         }
 
-        const result = await verifyOTP(phoneNumber, otp);
-        if (result.success) {
-            res.status(200).json(result);
-        } else {
-            res.status(400).json(result);
-        }
+        const verificationToken = await verifyRegisterOtpService(
+            phoneNumber,
+            otp
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "OTP verified successfully",
+            verificationToken
+        });
+        
     }catch (err) {
         console.error("Error in verifyOTPController:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -54,6 +59,10 @@ export const createUserController = async (req, res) => {
 
     if (!mobileNumber || !password) {
       return res.status(400).json({ message: "Mobile number and password are required" });
+    }
+
+    if (req.verifiedPhoneNumber !== mobileNumber) {
+      return res.status(400).json({ message: "Phone number mismatch" });
     }
 
     if (password.length < 6) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requestOTPController,
-    verifyOTPController,
+import { requestRegisterOTPController,
+    verifyRegisterOTPController,
     createUserController,
     loginUserController,
     logoutUserController,
@@ -12,15 +12,16 @@ import { requestOTPController,
  import { userAuthenticate } from "../middlwares/user.authenticate.js";
  import { adminAuthController } from "../api/admin/auth/auth.controller.js";
  import { govAuthController } from "../api/auth/government/govAuth.controller.js";
+ import { verifyOtpToken } from "../middlwares/verify.otp.token.js";
 
 
 const router = Router();
 
-router.post('/user/request-otp', requestOTPController);
+router.post('/user/request-otp', requestRegisterOTPController);
 
-router.post('/user/verify-otp', verifyOTPController);
+router.post('/user/verify-otp', verifyRegisterOTPController);
 
-router.post('/user/register', createUserController);
+router.post('/user/register', verifyOtpToken("REGISTER"), createUserController);
 
 router.post('/user/login', loginUserController);
 

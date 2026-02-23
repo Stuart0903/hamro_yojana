@@ -7,61 +7,126 @@ import jwt from "jsonwebtoken";
 // import { otpGenerator } from "../../utils/otp.generator.js";
 
 
-export const requestOTP = async (mobileNumber) => {
-    await prisma.oTPVerification.deleteMany({
-        where : {expiresAt : {lt : new Date()}}
+export const requestRegisterOtpService = async (phoneNumber) => {
+    const existingUser = await prisma.user.findUnique({
+        where: {phoneNumber}
     });
 
-    const otp = otpGenerator();
-    const otpHash = await hashPassword(otp);
+    if(existingUser) {
+        throw new Error("User with this phone number already exists");
+    }
 
-    await prisma.oTPVerification.create({
-        data : {
-            phoneNumber:mobileNumber,
-            otpCode: otpHash,
+    const existingOtp = await prisma.oTPVerification.findFirst({
+        where: {
+            phoneNumber,
+            purpose: "REGISTER",
             isUsed: false,
-            purpose: "PHONE_VERIFICATION",
-            expiresAt : new Date(Date.now() + 5 * 60 * 1000)
+            expiresAt: {gt: new Date()}
         }
     });
 
-    await sendOtpSMS(mobileNumber, otp);
-    console.log(`OTP sent to ${mobileNumber}`);
-    console.log("OTP:", otp);
+    if (existingOtp) {
+        throw new Error("OTP already sent for this phone number");
+    }
+
+    const otp = otpGenerator();
+
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await prisma.oTPVerification.create({
+        data: {
+            phoneNumber,
+            otpCode: otp,
+            purpose: "REGISTER",
+            expiresAt,
+            isUsed: false
+        },
+    });
+    console.log(`Generated OTP for ${phoneNumber}: ${otp}`);
+
+    await sendOtpSMS(phoneNumber, otp);
+
     return {message: "OTP sent successfully"};
 }
 
-export const verifyOTP = async (mobileNumber, otp) => {
-    await prisma.oTPVerification.deleteMany({
-        where : {expiresAt : {lt : new Date()}}
-    });
+// export const verifyOTP = async (mobileNumber, otp) => {
+//     await prisma.oTPVerification.deleteMany({
+//         where : {expiresAt : {lt : new Date()}}
+//     });
 
-    const latestOTP = await prisma.oTPVerification.findFirst({
-        where : {
-            phoneNumber : mobileNumber,
-            isUsed: false,
-            expiresAt : {gt : new Date()}
+//     const latestOTP = await prisma.oTPVerification.findFirst({
+//         where : {
+//             phoneNumber : mobileNumber,
+//             isUsed: false,
+//             expiresAt : {gt : new Date()}
+//         },
+//         orderBy : {
+//             createdAt : "desc"
+//         }
+//     });
+
+//     if (!latestOTP) {
+//         return {success: false, message: "No valid OTP found or expired"};
+//     }
+
+//     const isValid = await comparePassword(otp, latestOTP.otpCode);
+//     if (!isValid) {
+//         return {success: false, message: "Invalid OTP"};
+//     }
+
+//     await prisma.oTPVerification.update({
+//         where : {id : latestOTP.id},
+//         data : {isUsed : true}
+//     });
+
+//     return {success: true, message: "OTP verified successfully"};
+// }
+
+export const verifyRegisterOtpService = async (phoneNumber, otp) => {
+
+    const record = await prisma.oTPVerification.findFirst({
+        where: {
+            phoneNumber,
+            purpose: "REGISTER",
+            isUsed: false, 
         },
-        orderBy : {
-            createdAt : "desc"
-        }
+        orderBy: { createdAt: "desc" }
     });
 
-    if (!latestOTP) {
-        return {success: false, message: "No valid OTP found or expired"};
+    console.log("OTP record for verification:", record);
+
+    if (!record) {
+        throw new Error("No OTP request found for this phone number");
     }
 
-    const isValid = await comparePassword(otp, latestOTP.otpCode);
-    if (!isValid) {
-        return {success: false, message: "Invalid OTP"};
+    if (record.expiresAt < new Date()) {
+        throw new Error("OTP has expired");
+    }
+
+    if (record.attempt >= 5) {
+        throw new Error("Maximum OTP verification attempts exceeded");
+    }
+
+    if (record.otpCode !== otp) {
+        await prisma.oTPVerification.update({
+            where: {id: record.id},
+            data: {attempt: record.attempt + 1}
+        });
+        throw new Error("Invalid OTP");
     }
 
     await prisma.oTPVerification.update({
-        where : {id : latestOTP.id},
-        data : {isUsed : true}
-    });
+        where: {id: record.id},
+        data: {isUsed: true}
+        });
 
-    return {success: true, message: "OTP verified successfully"};
+    const verificationToken = jwt.sign(
+        {phoneNumber, purpose: "REGISTER"},
+        process.env.JWT_SECRET,
+        {expiresIn: "15m"}
+    )
+
+    return verificationToken;
 }
 
 export const createUser = async (mobileNumber, password) => {
@@ -74,6 +139,8 @@ export const createUser = async (mobileNumber, password) => {
             createdAt : "desc"
         }
     });
+
+    console.log("Used OTP record for user creation:", usedOtp);
 
     if (usedOtp === false) {
         throw new Error("OTP verification required to create user");
